@@ -1,20 +1,15 @@
 {
-  "name": "Ferdz Bank",
+  "name": "Ferdz Bank Pro",
   "short_name": "Ferdz",
-  "description": "Application bancaire moderne pour gestion et virements",
+  "description": "Plateforme bancaire numérique et virements sécurisés",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#070a12",
+  "theme_color": "#070a12",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "icon.png",
       "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
       "type": "image/png"
     }
   ]
