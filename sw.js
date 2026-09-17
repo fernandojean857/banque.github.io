@@ -1,26 +1,20 @@
-const CACHE_NAME = "ferdz-v1";
+const CACHE_NAME = "ferdz-pro-v1";
 const assets = [
-  "/",
-  "/index.html",
-  "/style.css",
-  "/app.js",
-  "/manifest.json"
+  "./",
+  "./index.html",
+  "./style.css",
+  "./script.js",
+  "./manifest.json"
 ];
 
-// Enstalasyon: Mete fichye debaz yo nan Cache
-self.addEventListener("install", installEvent => {
-  installEvent.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      cache.addAll(assets);
-    })
+self.addEventListener("install", event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(assets))
   );
 });
 
-// Lè itilizatè a mande yon fichye, chèche l nan Cache anvan
-self.addEventListener("fetch", fetchEvent => {
-  fetchEvent.respondWith(
-    caches.match(fetchEvent.request).then(res => {
-      return res || fetch(fetchEvent.request);
-    })
+self.addEventListener("fetch", event => {
+  event.respondWith(
+    caches.match(event.request).then(response => response || fetch(event.request))
   );
 });
