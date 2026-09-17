@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ferdz - Banque Moderne</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+    <div class="background-shapes"></div>
+
+    <!-- Section Authentification -->
+    <div id="auth-section" class="glass-container active">
+        <h1>Ferdz</h1>
+        <p>Bienvenue sur votre banque moderne</p>
+        <input type="email" id="email" placeholder="Adresse Email">
+        <input type="password" id="password" placeholder="Mot de passe">
+        <div class="buttons">
+            <button id="login-btn">Se connecter</button>
+            <button id="signup-btn" class="secondary">Créer un compte</button>
+        </div>
+        <p id="auth-error" class="error-msg"></p>
+    </div>
+
+    <!-- Section Tableau de Bord -->
+    <div id="dashboard-section" class="glass-container hidden">
+        <div class="header">
+            <h2>Ferdz</h2>
+            <button id="logout-btn" class="logout">Déconnexion</button>
+        </div>
+        
+        <div class="balance-card">
+            <p>Solde actuel</p>
+            <h1 id="balance-display">0.00 HTG</h1>
+        </div>
+
+        <!-- Dépôt / Retrait -->
+        <div class="action-box">
+            <h3>Opérations Rapides</h3>
+            <input type="number" id="amount" placeholder="Montant (HTG)">
+            <div class="buttons">
+                <button id="deposit-btn">Déposer</button>
+                <button id="withdraw-btn" class="secondary">Retirer</button>
+            </div>
+            <p class="note">Dépôt Moncash : Intégration API à configurer</p>
+        </div>
+
+        <!-- Virement entre utilisateurs (P2P) -->
+        <div class="action-box">
+            <h3>Virement (Envoyer à un proche)</h3>
+            <input type="email" id="transfer-email" placeholder="Email du destinataire">
+            <input type="number" id="transfer-amount" placeholder="Montant à envoyer (HTG)">
+            <button id="transfer-btn">Envoyer l'argent</button>
+            <p id="transfer-msg" class="msg"></p>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
