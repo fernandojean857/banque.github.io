@@ -1,16 +1,40 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, runTransaction } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+/**
+ * FERDZ DIGITAL BANK PRO - FIREBASE V10 (MODULAR)
+ */
 
-// Konfigirasyon pèsonèl Firebase ou an
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { 
+    getAuth, 
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword, 
+    onAuthStateChanged, 
+    signOut 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { 
+    getFirestore, 
+    doc, 
+    setDoc, 
+    updateDoc, 
+    collection, 
+    query, 
+    where, 
+    getDocs, 
+    onSnapshot, 
+    runTransaction, 
+    serverTimestamp, 
+    increment, 
+    arrayUnion 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// Konfigirasyon Firebase ou an
 const firebaseConfig = {
-  apiKey: "AIzaSyBl37OlL6YZyJabdsCeArsq0gpgoVwtzvc",
-  authDomain: "banque-e9319.firebaseapp.com",
-  databaseURL: "https://banque-e9319-default-rtdb.firebaseio.com",
-  projectId: "banque-e9319",
-  storageBucket: "banque-e9319.firebasestorage.app",
-  messagingSenderId: "632429158438",
-  appId: "1:632429158438:web:aa802acb607b8dde1486e7"
+    apiKey: "AIzaSyBl37OlL6YZyJabdsCeArsq0gpgoVwtzvc",
+    authDomain: "banque-e9319.firebaseapp.com",
+    databaseURL: "https://banque-e9319-default-rtdb.firebaseio.com",
+    projectId: "banque-e9319",
+    storageBucket: "banque-e9319.firebasestorage.app",
+    messagingSenderId: "632429158438",
+    appId: "1:632429158438:web:aa802acb607b8dde1486e7"
 };
 
 // Inisyalize Firebase
@@ -18,198 +42,326 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Enskripsyon Service Worker pou PWA
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(err => console.log("SW error:", err));
-}
-
-// Eleman UI yo
-const authSection = document.getElementById('auth-section');
-const dashSection = document.getElementById('dashboard-section');
-const balanceDisplay = document.getElementById('balance-display');
-const userEmailDisplay = document.getElementById('user-email-display');
-const authError = document.getElementById('auth-error');
-const transferMsg = document.getElementById('transfer-msg');
-
-let currentUserDoc = null;
-
-// Siveye si itilizatè a konekte oswa dekonekte
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        console.log("Utilisateur connecté :", user.email);
-        authSection.classList.remove('active');
-        dashSection.classList.add('active');
-        userEmailDisplay.innerText = user.email;
-        await loadOrCreateUserData(user);
-    } else {
-        console.log("Utilisateur déconnecté");
-        dashSection.classList.remove('active');
-        authSection.classList.add('active');
-    }
-});
-
-// Chaje oswa kreye done itilizatè a
-async function loadOrCreateUserData(user) {
-    currentUserDoc = doc(db, 'users', user.uid);
-    try {
-        const docSnap = await getDoc(currentUserDoc);
-        if (docSnap.exists()) {
-            balanceDisplay.innerText = docSnap.data().balance.toFixed(2) + " HTG";
-        } else {
-            await setDoc(currentUserDoc, {
-                email: user.email,
-                balance: 0
-            });
-            balanceDisplay.innerText = "0.00 HTG";
-        }
-    } catch (error) {
-        console.error("Erreur Firestore :", error);
-        alert("Erreur lors du chargement des données. Vérifiez si vous avez bien créé et configuré Firestore Database dans la console.");
-    }
-}
-
-// Kreye kont
-document.getElementById('signup-btn').addEventListener('click', async () => {
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value.trim();
-    authError.innerText = "";
-
-    if (!email || !password) {
-        authError.innerText = "Veuillez remplir tous les champs.";
-        return;
+class FerdzBankFirebaseEngine {
+    constructor() {
+        this.currentUserData = null;
+        this.bindEvents();
+        this.listenAuthState();
     }
 
-    try {
-        const userCred = await createUserWithEmailAndPassword(auth, email, password);
-        await setDoc(doc(db, 'users', userCred.user.uid), {
-            email: email,
-            balance: 0
-        });
-    } catch (error) {
-        authError.innerText = getErrorMessage(error.code);
-    }
-});
-
-// Konekte
-document.getElementById('login-btn').addEventListener('click', async () => {
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value.trim();
-    authError.innerText = "";
-
-    if (!email || !password) {
-        authError.innerText = "Veuillez remplir tous les champs.";
-        return;
-    }
-
-    try {
-        await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-        authError.innerText = getErrorMessage(error.code);
-    }
-});
-
-// Dekonekte
-document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
-
-// Depo
-document.getElementById('deposit-btn').addEventListener('click', async () => {
-    const amountInput = document.getElementById('amount');
-    const amount = parseFloat(amountInput.value);
-    if (!amount || amount <= 0) return;
-
-    try {
-        const docSnap = await getDoc(currentUserDoc);
-        const newBalance = (docSnap.data().balance || 0) + amount;
-        await updateDoc(currentUserDoc, { balance: newBalance });
-        amountInput.value = "";
-        loadOrCreateUserData(auth.currentUser);
-    } catch (err) {
-        alert("Erreur lors du dépôt : " + err.message);
-    }
-});
-
-// Retrè
-document.getElementById('withdraw-btn').addEventListener('click', async () => {
-    const amountInput = document.getElementById('amount');
-    const amount = parseFloat(amountInput.value);
-    if (!amount || amount <= 0) return;
-
-    try {
-        const docSnap = await getDoc(currentUserDoc);
-        const currentBalance = docSnap.data().balance || 0;
-        if (currentBalance >= amount) {
-            const newBalance = currentBalance - amount;
-            await updateDoc(currentUserDoc, { balance: newBalance });
-            amountInput.value = "";
-            loadOrCreateUserData(auth.currentUser);
-        } else {
-            alert("Fonds insuffisants");
-        }
-    } catch (err) {
-        alert("Erreur lors du retrait : " + err.message);
-    }
-});
-
-// VIREMENT P2P (Envoyer de l'argent)
-document.getElementById('transfer-btn').addEventListener('click', async () => {
-    const receiverEmail = document.getElementById('transfer-email').value.trim();
-    const amountInput = document.getElementById('transfer-amount');
-    const amount = parseFloat(amountInput.value);
-    transferMsg.style.color = "#ef4444";
-    
-    if (!amount || amount <= 0 || !receiverEmail) {
-        transferMsg.innerText = "Informations invalides";
-        return;
-    }
-
-    if (receiverEmail.toLowerCase() === auth.currentUser.email.toLowerCase()) {
-        transferMsg.innerText = "Vous ne pouvez pas envoyer d'argent à vous-même";
-        return;
-    }
-
-    try {
-        const q = query(collection(db, "users"), where("email", "==", receiverEmail));
-        const querySnapshot = await getDocs(q);
+    bindEvents() {
+        document.getElementById('btn-toggle-auth').addEventListener('click', () => this.toggleAuthMode());
+        document.getElementById('btn-auth-submit').addEventListener('click', () => this.handleAuth());
+        document.getElementById('btn-logout').addEventListener('click', () => this.logout());
         
-        if (querySnapshot.empty) {
-            transferMsg.innerText = "Utilisateur introuvable";
+        document.getElementById('btn-confirm-deposit').addEventListener('click', () => this.executeDeposit());
+        document.getElementById('btn-confirm-withdraw').addEventListener('click', () => this.executeWithdraw());
+        document.getElementById('btn-confirm-transfer').addEventListener('click', () => this.executeTransfer());
+    }
+
+    listenAuthState() {
+        onAuthStateChanged(auth, (user) => {
+            const authScreen = document.getElementById('auth-screen');
+            const dashScreen = document.getElementById('dashboard-screen');
+
+            if (user) {
+                // Real-time listener sou dokiman itilizatè a
+                onSnapshot(doc(db, "users", user.uid), (documentSnapshot) => {
+                    if (documentSnapshot.exists()) {
+                        this.currentUserData = { uid: user.uid, ...documentSnapshot.data() };
+                        authScreen.classList.add('hidden-screen');
+                        dashScreen.classList.remove('hidden-screen');
+                        this.renderDashboard();
+                    }
+                });
+            } else {
+                this.currentUserData = null;
+                dashScreen.classList.add('hidden-screen');
+                authScreen.classList.remove('hidden-screen');
+            }
+        });
+    }
+
+    toggleAuthMode() {
+        const signupFields = document.getElementById('signup-fields');
+        const pinField = document.getElementById('pin-field');
+        const submitBtn = document.getElementById('btn-auth-submit');
+        const toggleText = document.getElementById('toggle-text');
+        const toggleBtn = document.getElementById('btn-toggle-auth');
+
+        const isSignup = signupFields.classList.contains('hidden');
+
+        if (isSignup) {
+            signupFields.classList.remove('hidden');
+            pinField.classList.remove('hidden');
+            submitBtn.innerText = "Créer mon Compte";
+            toggleText.innerText = "Vous avez déjà un compte ?";
+            toggleBtn.innerText = "Se connecter";
+        } else {
+            signupFields.classList.add('hidden');
+            pinField.classList.add('hidden');
+            submitBtn.innerText = "Se Connecter";
+            toggleText.innerText = "Vous n'avez pas encore de compte ?";
+            toggleBtn.innerText = "Créer un compte";
+        }
+    }
+
+    async handleAuth() {
+        const email = document.getElementById('auth-email').value.trim().toLowerCase();
+        const password = document.getElementById('auth-password').value.trim();
+        const fullname = document.getElementById('auth-fullname').value.trim();
+        const pin = document.getElementById('auth-pin').value.trim();
+        const isSignup = !document.getElementById('signup-fields').classList.contains('hidden');
+
+        if (!email || !password) {
+            this.showToast("Veuillez remplir tous les champs obligatoires.", "danger");
             return;
         }
 
-        const receiverDocRef = querySnapshot.docs[0].ref;
+        try {
+            if (isSignup) {
+                if (!fullname || pin.length !== 4) {
+                    this.showToast("Le nom complet et un PIN à 4 chiffres sont requis.", "danger");
+                    return;
+                }
 
-        await runTransaction(db, async (transaction) => {
-            const senderDoc = await transaction.get(currentUserDoc);
-            const receiverDoc = await transaction.get(receiverDocRef);
+                // Kreye kont lan
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                const accNumber = "FDZ-" + Math.floor(1000 + Math.random() * 9000) + "-" + Math.floor(1000 + Math.random() * 9000);
 
-            const senderBalance = senderDoc.data().balance || 0;
-            if (senderBalance < amount) {
-                throw new Error("Fonds insuffisants pour ce virement");
+                // Enregistre pwofil nan Firestore
+                await setDoc(doc(db, "users", user.uid), {
+                    fullname: fullname,
+                    email: email,
+                    pin: pin,
+                    accountNumber: accNumber,
+                    balance: 0,
+                    income: 0,
+                    expense: 0,
+                    transactions: [],
+                    createdAt: serverTimestamp()
+                });
+
+                this.showToast("Compte créé avec succès !", "success");
+            } else {
+                // Konektyon
+                await signInWithEmailAndPassword(auth, email, password);
+                this.showToast("Connexion réussie !", "success");
+            }
+        } catch (error) {
+            let msg = "Erreur d'authentification.";
+            if(error.code === 'auth/email-already-in-use') msg = "Cet email est déjà utilisé.";
+            if(error.code === 'auth/invalid-credential') msg = "Email ou mot de passe incorrect.";
+            if(error.code === 'auth/weak-password') msg = "Le mot de passe doit contenir au moins 6 caractères.";
+            this.showToast(msg, "danger");
+        }
+    }
+
+    logout() {
+        signOut(auth).then(() => {
+            this.showToast("Déconnexion effectuée.", "info");
+        });
+    }
+
+    renderDashboard() {
+        const user = this.currentUserData;
+        if (!user) return;
+
+        document.getElementById('user-display-name').innerText = user.fullname;
+        document.getElementById('card-holder-name').innerText = user.fullname.toUpperCase();
+        document.getElementById('user-account-number').innerText = user.accountNumber;
+        document.getElementById('user-avatar').innerText = user.fullname.charAt(0).toUpperCase();
+
+        document.getElementById('balance-display').innerText = this.formatCurrency(user.balance || 0);
+        document.getElementById('stat-income').innerText = "+" + this.formatCurrency(user.income || 0);
+        document.getElementById('stat-expense').innerText = "-" + this.formatCurrency(user.expense || 0);
+
+        const historyContainer = document.getElementById('transaction-history');
+        const txList = user.transactions || [];
+        document.getElementById('tx-count').innerText = txList.length;
+        historyContainer.innerHTML = "";
+
+        if (txList.length === 0) {
+            historyContainer.innerHTML = `<div style="text-align:center; padding:20px; color:#64748b; font-size:0.85rem;">Aucune opération récente</div>`;
+            return;
+        }
+
+        // Afiche tranzaksyon ki pi resan yo an premye (reverse)
+        [...txList].reverse().forEach(tx => {
+            const isPositive = tx.amount > 0;
+            const item = document.createElement('div');
+            item.className = 'tx-item';
+            item.innerHTML = `
+                <div class="tx-info">
+                    <h4>${tx.title}</h4>
+                    <p>${tx.date}</p>
+                </div>
+                <span class="tx-amount ${isPositive ? 'text-success' : 'text-danger'}">
+                    ${isPositive ? '+' : ''}${this.formatCurrency(tx.amount)}
+                </span>
+            `;
+            historyContainer.appendChild(item);
+        });
+    }
+
+    async executeDeposit() {
+        const amount = parseFloat(document.getElementById('deposit-amount').value);
+        if (!amount || amount <= 0) {
+            this.showToast("Saisissez un montant valide.", "danger");
+            return;
+        }
+
+        const userRef = doc(db, "users", this.currentUserData.uid);
+        const dateStr = new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+
+        try {
+            await updateDoc(userRef, {
+                balance: increment(amount),
+                income: increment(amount),
+                transactions: arrayUnion({
+                    title: "Dépôt sur compte",
+                    amount: amount,
+                    date: dateStr
+                })
+            });
+
+            window.closeModal('deposit-modal');
+            document.getElementById('deposit-amount').value = "";
+            this.showToast("Dépôt réussi !", "success");
+        } catch (error) {
+            this.showToast("Erreur lors du dépôt.", "danger");
+        }
+    }
+
+    async executeWithdraw() {
+        const amount = parseFloat(document.getElementById('withdraw-amount').value);
+        if (!amount || amount <= 0) {
+            this.showToast("Saisissez un montant valide.", "danger");
+            return;
+        }
+
+        if (this.currentUserData.balance < amount) {
+            this.showToast("Solde insuffisant.", "danger");
+            return;
+        }
+
+        const userRef = doc(db, "users", this.currentUserData.uid);
+        const dateStr = new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+
+        try {
+            await updateDoc(userRef, {
+                balance: increment(-amount),
+                expense: increment(amount),
+                transactions: arrayUnion({
+                    title: "Retrait d'argent",
+                    amount: -amount,
+                    date: dateStr
+                })
+            });
+
+            window.closeModal('withdraw-modal');
+            document.getElementById('withdraw-amount').value = "";
+            this.showToast("Retrait effectué !", "success");
+        } catch (error) {
+            this.showToast("Erreur lors du retrait.", "danger");
+        }
+    }
+
+    async executeTransfer() {
+        const recipientEmail = document.getElementById('transfer-recipient').value.trim().toLowerCase();
+        const amount = parseFloat(document.getElementById('transfer-amount').value);
+        const pin = document.getElementById('transfer-pin').value.trim();
+
+        if (!recipientEmail || !amount || amount <= 0) {
+            this.showToast("Veuillez vérifier les champs.", "danger");
+            return;
+        }
+
+        if (pin !== this.currentUserData.pin) {
+            this.showToast("Code PIN incorrect !", "danger");
+            return;
+        }
+
+        if (recipientEmail === this.currentUserData.email) {
+            this.showToast("Virement vers soi-même impossible.", "danger");
+            return;
+        }
+
+        if (this.currentUserData.balance < amount) {
+            this.showToast("Solde insuffisant.", "danger");
+            return;
+        }
+
+        try {
+            // Rechèche Destinataire
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("email", "==", recipientEmail));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                this.showToast("Destinataire introuvable.", "danger");
+                return;
             }
 
-            transaction.update(currentUserDoc, { balance: senderBalance - amount });
-            transaction.update(receiverDocRef, { balance: (receiverDoc.data().balance || 0) + amount });
-        });
+            const recipientDoc = querySnapshot.docs[0];
+            const recipientRef = doc(db, "users", recipientDoc.id);
+            const recipientData = recipientDoc.data();
+            const senderRef = doc(db, "users", this.currentUserData.uid);
+            
+            const dateStr = new Date().toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
 
-        transferMsg.style.color = "#22c55e";
-        transferMsg.innerText = "Virement réussi !";
-        amountInput.value = "";
-        document.getElementById('transfer-email').value = "";
-        loadOrCreateUserData(auth.currentUser);
-        
-    } catch (error) {
-        transferMsg.innerText = error.message || error;
+            // Firestore Atomic Transaction pou Sekirite
+            await runTransaction(db, async (transaction) => {
+                transaction.update(senderRef, {
+                    balance: increment(-amount),
+                    expense: increment(amount),
+                    transactions: arrayUnion({
+                        title: `Virement envoyé à ${recipientData.fullname}`,
+                        amount: -amount,
+                        date: dateStr
+                    })
+                });
+
+                transaction.update(recipientRef, {
+                    balance: increment(amount),
+                    income: increment(amount),
+                    transactions: arrayUnion({
+                        title: `Virement reçu de ${this.currentUserData.fullname}`,
+                        amount: amount,
+                        date: dateStr
+                    })
+                });
+            });
+
+            window.closeModal('transfer-modal');
+            document.getElementById('transfer-recipient').value = "";
+            document.getElementById('transfer-amount').value = "";
+            document.getElementById('transfer-pin').value = "";
+
+            this.showToast("Virement exécuté instantanément !", "success");
+        } catch (error) {
+            this.showToast("Erreur virement : " + error.message, "danger");
+        }
     }
-});
 
-// Tradiksyon mesaj erè
-function getErrorMessage(code) {
-    switch (code) {
-        case 'auth/user-not-found': return 'Aucun utilisateur trouvé avec cet email.';
-        case 'auth/wrong-password': return 'Mot de passe incorrect.';
-        case 'auth/email-already-in-use': return 'Cet email est déjà utilisé.';
-        case 'auth/weak-password': return 'Le mot de passe doit faire au moins 6 caractères.';
-        case 'auth/invalid-email': return 'Adresse email invalide.';
-        default: return 'Une erreur est survenue : ' + code;
+    formatCurrency(val) {
+        return val.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " HTG";
+    }
+
+    showToast(msg, type = "info") {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerText = msg;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3500);
     }
 }
+
+// Ekspoze fonksyon yo nan window pou HTML la ka wè yo (akoz type="module")
+window.openModal = function(id) { document.getElementById(id).classList.add('active'); };
+window.closeModal = function(id) { document.getElementById(id).classList.remove('active'); };
+
+// Demare aplikasyon an
+const appEngine = new FerdzBankFirebaseEngine();
